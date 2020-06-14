@@ -26,14 +26,14 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 
         public MediaTypeHandler(
             IEntityService entityService, 
-            IMediaTypeService mediaTypeService,
-            IProfilingLogger logger, 
-            ISyncSerializer<IMediaType> serializer,
-            ISyncTracker<IMediaType> tracker,
+            IProfilingLogger logger,
             AppCaches appCaches,
+            ISyncSerializer<IMediaType> serializer,
+            SyncTrackerCollection trackers,
             SyncDependencyCollection checkers,
-            SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, checkers, syncFileService)
+            SyncFileService syncFileService,
+            IMediaTypeService mediaTypeService)
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
         {
             this.mediaTypeService = mediaTypeService;
         }

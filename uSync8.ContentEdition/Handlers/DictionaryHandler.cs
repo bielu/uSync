@@ -34,13 +34,13 @@ namespace uSync8.ContentEdition.Handlers
 
         public DictionaryHandler(IEntityService entityService,
             IProfilingLogger logger,
-            ILocalizationService localizationService,
-            ISyncSerializer<IDictionaryItem> serializer,
-            ISyncTracker<IDictionaryItem> tracker,
             AppCaches appCaches,
+            ISyncSerializer<IDictionaryItem> serializer,
+            SyncTrackerCollection trackers,
             SyncDependencyCollection checkers,
-            SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, checkers, syncFileService)
+            SyncFileService syncFileService,
+            ILocalizationService localizationService)
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
         {
             this.localizationService = localizationService;
         }

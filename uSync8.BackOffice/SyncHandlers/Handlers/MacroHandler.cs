@@ -28,13 +28,13 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 
         public MacroHandler(IEntityService entityService,
             IProfilingLogger logger, 
-            IMacroService macroService,
-            ISyncSerializer<IMacro> serializer,
-            ISyncTracker<IMacro> tracker,
             AppCaches appCaches,
+            ISyncSerializer<IMacro> serializer,
+            SyncTrackerCollection trackers,
             SyncDependencyCollection checkers,
-            SyncFileService syncFileService) 
-            : base(entityService, logger, serializer, tracker, appCaches, checkers, syncFileService)
+            SyncFileService syncFileService,
+            IMacroService macroService) 
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
         {
             this.macroService = macroService;
         }

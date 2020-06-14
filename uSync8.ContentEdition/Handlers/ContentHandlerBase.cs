@@ -35,74 +35,24 @@ namespace uSync8.ContentEdition.Handlers
         protected ContentHandlerBase(
             IEntityService entityService,
             IProfilingLogger logger,
-            ISyncSerializer<TObject> serializer,
-            ISyncTracker<TObject> tracker,
             AppCaches appCaches,
+            ISyncSerializer<TObject> serializer,
+            SyncTrackerCollection trackers,
+            SyncDependencyCollection checkers,
             SyncFileService syncFileService)
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
+        { }
+
+        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
+        protected ContentHandlerBase(IEntityService entityService, IProfilingLogger logger, ISyncSerializer<TObject> serializer, ISyncTracker<TObject> tracker, AppCaches appCaches, SyncFileService syncFileService)
             : base(entityService, logger, serializer, tracker, appCaches, syncFileService)
         { }
 
+        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
         protected ContentHandlerBase(
-            IEntityService entityService,
-            IProfilingLogger logger,
-            ISyncSerializer<TObject> serializer,
-            ISyncTracker<TObject> tracker,
-            AppCaches appCaches,
-            SyncDependencyCollection checkers,
-            SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, checkers, syncFileService)
-        { }
-
-        [Obsolete("Construct your handler using SyncDependencyCollection for better checker support")]
-        protected ContentHandlerBase(
-            IEntityService entityService,
-            IProfilingLogger logger,
-            ISyncSerializer<TObject> serializer,
-            ISyncTracker<TObject> tracker,
-            AppCaches appCaches,
-            ISyncDependencyChecker<TObject> checker,
-            SyncFileService fileService)
+            IEntityService entityService, IProfilingLogger logger, ISyncSerializer<TObject> serializer, ISyncTracker<TObject> tracker, AppCaches appCaches, ISyncDependencyChecker<TObject> checker, SyncFileService fileService)
             : base(entityService, logger, serializer, tracker, appCaches, checker, fileService)
         { }
-
-
-
-        protected override string CheckAndFixFileClash(string path, TObject item)
-        {
-            if (syncFileService.FileExists(path))
-            {
-                var itemKey = item.Key;
-                var node = syncFileService.LoadXElement(path);
-
-                if (node == null) return path;
-                if (item.Key == node.GetKey()) return path;
-                if (GetXmlMatchString(node) == GetItemMatchString(item)) return path;
-
-                // get here we have a clash, we should append something
-                var append = item.Key.ToShortKeyString(8); // (this is the shortened guid like media folders do)
-                return Path.Combine(Path.GetDirectoryName(path),
-                    Path.GetFileNameWithoutExtension(path) + "_" + append + Path.GetExtension(path));
-            }
-
-            return path;
-        }
-
-        protected virtual string GetItemMatchString(TObject item)
-        {
-            var itemPath = item.Level.ToString();
-            if (item.Trashed && serializer is ISyncContentSerializer<TObject> contentSerializer)
-            {
-                itemPath = contentSerializer.GetItemPath(item);
-            }
-            return $"{item.Name}_{itemPath}".ToLower();
-        }
-
-        protected virtual string GetXmlMatchString(XElement node)
-        {
-            var path = node.Element("Info")?.Element("Path").ValueOrDefault(node.GetLevel().ToString());
-            return $"{node.GetAlias()}_{path}".ToLower();
-        }
-
 
         /*
          *  Config options. 
@@ -116,9 +66,9 @@ namespace uSync8.ContentEdition.Handlers
         {
             // unless the setting is explicit we don't import trashed items. 
             var trashed = node.Element("Info")?.Element("Trashed").ValueOrDefault(false);
-            if (trashed.GetValueOrDefault(false) && !GetConfigValue(config, "ImportTrashed", true)) return false;
+            if (trashed.GetValueOrDefault(false) && !config.GetSetting("ImportTrashed", true)) return false;
 
-            var include = GetConfigValue(config, "Include", "")
+            var include = config.GetSetting("Include", "")
                 .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
             if (include.Length > 0)
@@ -131,7 +81,7 @@ namespace uSync8.ContentEdition.Handlers
                 }
             }
 
-            var exclude = GetConfigValue(config, "Exclude", "")
+            var exclude = config.GetSetting("Exclude", "")
                 .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (exclude.Length > 0)
             {
@@ -160,27 +110,14 @@ namespace uSync8.ContentEdition.Handlers
         {
             // We export trashed items by default, (but we don't import them by default)
             var trashed = node.Element("Info")?.Element("Trashed").ValueOrDefault(false);
-            if (trashed.GetValueOrDefault(false) && !GetConfigValue(config, "ExportTrashed", true)) return false;
+            if (trashed.GetValueOrDefault(false) && !config.GetSetting("ExportTrashed", true)) return false;
 
-            if (GetConfigValue(config, "RulesOnExport", false))
+            if (config.GetSetting("RulesOnExport", false))
             {
                 return ShouldImport(node, config);
             }
 
             return true;
-        }
-
-        private bool GetConfigValue(HandlerSettings config, string setting, bool defaultValue)
-        {
-            if (!config.Settings.ContainsKey(setting)) return defaultValue;
-            return config.Settings[setting].InvariantEquals("true");
-        }
-
-        private string GetConfigValue(HandlerSettings config, string setting, string defaultValue)
-        {
-            if (!config.Settings.ContainsKey(setting)) return defaultValue;
-            if (string.IsNullOrWhiteSpace(config.Settings[setting])) return defaultValue;
-            return config.Settings[setting];
         }
 
         // we only match duplicate actions by key. 
@@ -198,6 +135,57 @@ namespace uSync8.ContentEdition.Handlers
         /// <returns></returns>
         protected override string GetItemAlias(TObject item)
             => item.Key.ToString();
+
+
+        /// <summary>
+        ///  Handle file clashes, that can happen when two items 
+        ///  with the same name are saved in the same folder.
+        /// </summary>
+        /// <remarks>
+        ///  This happens when you are flattening a tree into a single folder, 
+        ///  we append a shortKey string (based on the guid to the end of a clash)
+        /// </remarks>
+        protected override string CheckAndFixFileClash(string path, TObject item)
+        {
+            if (syncFileService.FileExists(path))
+            {              
+                var node = syncFileService.LoadXElement(path);
+
+                if (node == null) return path;
+                if (item.Key == node.GetKey()) return path;
+                if (GetXmlSignatureString(node) == GetItemSignatureString(item)) return path;
+
+                // Get here we have a clash, we should append something
+                var append = item.Key.ToShortKeyString(8); // (this is the shortened guid like media folders do in v8)
+                return Path.Combine(Path.GetDirectoryName(path),
+                    Path.GetFileNameWithoutExtension(path) + "_" + append + Path.GetExtension(path));
+            }
+
+            return path;
+        }
+
+        /// <summary>
+        ///  Generate a signiture for this item, that we can use for comparision
+        /// </summary>
+        protected virtual string GetItemSignatureString(TObject item)
+        {
+            var itemPath = item.Level.ToString();
+            if (item.Trashed && serializer is ISyncContentSerializer<TObject> contentSerializer)
+            {
+                itemPath = contentSerializer.GetItemPath(item);
+            }
+            return $"{item.Name}_{itemPath}".ToLower();
+        }
+
+        /// <summary>
+        ///  Generate a signiture for the xml node that we can use for comparison
+        /// </summary>
+        protected virtual string GetXmlSignatureString(XElement node)
+        {
+            var path = node.Element("Info")?.Element("Path").ValueOrDefault(node.GetLevel().ToString());
+            return $"{node.GetAlias()}_{path}".ToLower();
+        }
+
     }
 
 }

@@ -28,13 +28,13 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
         public TemplateHandler(
             IEntityService entityService, 
             IProfilingLogger logger, 
-            IFileService fileService,
-            ISyncSerializer<ITemplate> serializer, 
-            ISyncTracker<ITemplate> tracker,
             AppCaches appCaches,
+            ISyncSerializer<ITemplate> serializer, 
+            SyncTrackerCollection trackers,
             SyncDependencyCollection checkers,
-            SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, checkers, syncFileService)
+            SyncFileService syncFileService,
+            IFileService fileService)
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
         {
             this.fileService = fileService;
         }
