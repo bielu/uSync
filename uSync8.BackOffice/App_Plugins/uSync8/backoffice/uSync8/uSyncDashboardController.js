@@ -7,8 +7,8 @@
         var vm = this;
 
         vm.page = {
-            title: 'uSync 8.6 & ¾',
-            description: '8.7 - minus a little bit',
+            title: 'uSync 8.7.0',
+            description: '8.7.0',
             navigation: [
                 {
                     'name': 'uSync',
