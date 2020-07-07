@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 using System.Xml.Linq;
 
 using Umbraco.Core;
@@ -25,7 +26,7 @@ using uSync8.Core.Tracking;
 
 namespace uSync8.BackOffice.SyncHandlers
 {
-    public abstract class SyncHandlerRoot<TObject, TBase>
+    public abstract class SyncHandlerRoot<TObject, TContainer>
     {
         protected readonly IProfilingLogger logger;
 
@@ -110,17 +111,21 @@ namespace uSync8.BackOffice.SyncHandlers
         protected Type handlerType;
 
         protected SyncHandlerRoot(IProfilingLogger logger,
-            ISyncSerializer<TObject> serializer,
-            IEnumerable<ISyncTracker<TObject>> trackers,
             AppCaches appCaches,
-            IEnumerable<ISyncDependencyChecker<TObject>> checkers,
+            ISyncSerializer<TObject> serializer,
+            SyncTrackerCollection trackers,
+            SyncDependencyCollection checkers,
             SyncFileService syncFileService)
         {
             this.logger = logger;
 
             this.serializer = serializer;
-            this.trackers = trackers.ToList();
-            this.checkers = checkers.ToList();
+
+            this.trackers = trackers != null ? trackers.GetTrackers<TObject>().ToList()
+                : Current.Factory.GetInstance<SyncTrackerCollection>().GetTrackers<TObject>().ToList();
+
+            this.checkers = checkers != null ? checkers.GetCheckers<TObject>().ToList()
+                : Current.Factory.GetInstance<SyncDependencyCollection>().GetCheckers<TObject>().ToList();
 
             this.syncFileService = syncFileService;
 
@@ -198,7 +203,7 @@ namespace uSync8.BackOffice.SyncHandlers
 
             actions.AddRange(ImportFolder(folder, config, updates, force, callback));
 
-            if (updates.Any())
+            if (updates.Count > 0)
             {
                 ProcessSecondPasses(updates, actions, config, callback);
             }
@@ -216,29 +221,24 @@ namespace uSync8.BackOffice.SyncHandlers
         /// </summary>
         private void ProcessSecondPasses(IDictionary<string, TObject> updates, List<uSyncAction> actions, HandlerSettings config, SyncUpdateCallback callback = null)
         {
-            List<TObject> updatedItems = new List<TObject>();
             foreach (var item in updates.Select((update, Index) => new { update, Index }))
             {
                 callback?.Invoke($"Second Pass {Path.GetFileName(item.update.Key)}", item.Index, updates.Count);
+                
                 var attempt = ImportSecondPass(item.update.Key, item.update.Value, config, callback);
                 if (attempt.Success)
                 {
                     // if the second attempt has a message on it, add it to the first attempt.
-                    if (!string.IsNullOrWhiteSpace(attempt.Message))
+                    if (!string.IsNullOrWhiteSpace(attempt.Message) && actions.Any(x => x.FileName == item.update.Key))
                     {
-                        if (actions.Any(x => x.FileName == item.update.Key))
-                        {
-                            var action = actions.FirstOrDefault(x => x.FileName == item.update.Key);
-                            actions.Remove(action);
-                            action.Message += attempt.Message;
-                            actions.Add(action);
-                        }
+                        var action = actions.FirstOrDefault(x => x.FileName == item.update.Key);
+                        actions.Remove(action);
+                        action.Message += attempt.Message;
+                        actions.Add(action);
                     }
 
-                    if (attempt.Change > ChangeType.NoChange)
-                    {
-                        updatedItems.Add(attempt.Item);
-                    }
+                    if (attempt.Change > ChangeType.NoChange && !attempt.Saved && attempt.Item != null)
+                        serializer.Save(attempt.Item.AsEnumerableOfOne());
                 }
                 else
                 {
@@ -254,13 +254,6 @@ namespace uSync8.BackOffice.SyncHandlers
                     }
                 }
             }
-
-            if (config.BatchSave)
-            {
-                callback?.Invoke($"Saving {updatedItems.Count} Second Pass Items", 2, 3);
-                serializer.Save(updatedItems);
-            }
-
         }
 
         /// <summary>
@@ -269,47 +262,36 @@ namespace uSync8.BackOffice.SyncHandlers
         protected virtual IEnumerable<uSyncAction> ImportFolder(string folder, HandlerSettings config, Dictionary<string, TObject> updates, bool force, SyncUpdateCallback callback)
         {
             List<uSyncAction> actions = new List<uSyncAction>();
-            var files = GetImportFiles(folder);
+            var files = GetImportFiles(folder).ToList();
 
             var flags = SerializerFlags.None;
             if (force) flags |= SerializerFlags.Force;
-            if (config.BatchSave) flags |= SerializerFlags.DoNotSave;
 
             var cleanMarkers = new List<string>();
 
             int count = 0;
-            int total = files.Count();
             foreach (string file in files)
             {
-                count++;
-
-                callback?.Invoke($"Importing {Path.GetFileNameWithoutExtension(file)}", count, total);
+                callback?.Invoke($"Importing {Path.GetFileNameWithoutExtension(file)}", ++count, files.Count);
 
                 var attempt = Import(file, config, flags);
-                if (attempt.Success)
+
+                if (attempt.Change == ChangeType.Clean)
                 {
-                    if (attempt.Change == ChangeType.Clean)
-                    {
-                        cleanMarkers.Add(file);
-                    }
-                    else if (attempt.Item != null)
-                    {
-                        updates.Add(file, attempt.Item);
-                    }
+                    // a successful clean, gets added to the marker file. 
+                    if (attempt.Success) cleanMarkers.Add(file);
                 }
+                else
+                {
+                    // "normal" action
+                    var action = uSyncActionHelper<TObject>.SetAction(attempt, file, this.Alias, IsTwoPass);
+                    if (attempt.Details != null && attempt.Details.Any())
+                        action.Details = attempt.Details;
 
-                var action = uSyncActionHelper<TObject>.SetAction(attempt, file, this.Alias, IsTwoPass);
-                if (attempt.Details != null && attempt.Details.Any())
-                    action.Details = attempt.Details;
-
-                if (attempt.Change != ChangeType.Clean)
                     actions.Add(action);
-            }
 
-            // bulk save ..
-            if (flags.HasFlag(SerializerFlags.DoNotSave) && updates.Any())
-            {
-                serializer.Save(updates.Select(x => x.Value));
+                    if (attempt.Success && attempt.Item != null) updates[file] = attempt.Item;
+                }
             }
 
             // process children.
@@ -450,8 +432,7 @@ namespace uSync8.BackOffice.SyncHandlers
                     var node = XElement.Load(stream);
                     if (ShouldImport(node, config))
                     {
-                        var attempt = DeserializeItem(node, new SyncSerializerOptions(flags, config.Settings));
-                        return attempt;
+                        return DeserializeItem(node, new SyncSerializerOptions(flags, config.Settings));
                     }
                     else
                     {
@@ -482,8 +463,6 @@ namespace uSync8.BackOffice.SyncHandlers
                     syncFileService.EnsureFileExists(file);
 
                     var flags = SerializerFlags.None;
-                    if (config.BatchSave)
-                        flags |= SerializerFlags.DoNotSave;
 
                     using (var stream = syncFileService.OpenRead(file))
                     {
@@ -496,11 +475,11 @@ namespace uSync8.BackOffice.SyncHandlers
                 catch (Exception ex)
                 {
                     logger.Warn(handlerType, $"Second Import Failed: {ex.ToString()}");
-                    return SyncAttempt<TObject>.Fail(GetItemId(item).ToString(), ChangeType.Fail, ex.Message, ex);
+                    return SyncAttempt<TObject>.Fail(GetItemAlias(item).ToString(), ChangeType.Fail, ex.Message, ex);
                 }
             }
 
-            return SyncAttempt<TObject>.Succeed(GetItemId(item).ToString(), ChangeType.NoChange);
+            return SyncAttempt<TObject>.Succeed(GetItemAlias(item).ToString(), ChangeType.NoChange);
         }
 
         #endregion
@@ -518,7 +497,7 @@ namespace uSync8.BackOffice.SyncHandlers
             return ExportAll(default, folder, config, callback);
         }
 
-        virtual public IEnumerable<uSyncAction> ExportAll(TBase parent, string folder, HandlerSettings config, SyncUpdateCallback callback)
+        virtual public IEnumerable<uSyncAction> ExportAll(TContainer parent, string folder, HandlerSettings config, SyncUpdateCallback callback)
         {
             var actions = new List<uSyncAction>();
 
@@ -542,7 +521,6 @@ namespace uSync8.BackOffice.SyncHandlers
                 actions.AddRange(ExportAll(item.Value, folder, config, callback));
             }
 
-            // callback?.Invoke("Done", 1, 1);
             return actions;
         }
 
@@ -553,7 +531,7 @@ namespace uSync8.BackOffice.SyncHandlers
         ///  Depending on what type of item this is the children might be other items of the same type 
         ///  or container items.
         /// </remarks>
-        public bool HasChildren(TBase item)
+        public bool HasChildren(TContainer item)
             => GetFolders(item).Any() || GetChildItems(item).Any();
 
         /// <summary>
@@ -743,14 +721,12 @@ namespace uSync8.BackOffice.SyncHandlers
         {
             List<uSyncAction> actions = new List<uSyncAction>();
 
-            var files = GetImportFiles(folder);
+            var files = GetImportFiles(folder).ToList();
 
             int count = 0;
-            int total = files.Count();
             foreach (string file in files)
             {
-                count++;
-                callback?.Invoke(Path.GetFileNameWithoutExtension(file), count, total);
+                callback?.Invoke(Path.GetFileNameWithoutExtension(file), ++count, files.Count);
 
                 actions.AddRange(ReportItem(file, config));
             }
@@ -837,6 +813,11 @@ namespace uSync8.BackOffice.SyncHandlers
             try
             {
                 var node = syncFileService.LoadXElement(file);
+
+                logger.Debug(handlerType, "Node {node}, File {file}, Settings {count}"
+                    , node.Name.LocalName,
+                    file, config.Settings.Count);
+
                 if (ShouldImport(node, config))
                 {
                     return ReportElement(node, file, config);
@@ -851,7 +832,7 @@ namespace uSync8.BackOffice.SyncHandlers
             {
                 logger.Warn(handlerType, ex, "Error generating report");
                 return uSyncActionHelper<TObject>
-                    .ReportActionFail(Path.GetFileName(file), $"Reporting error {ex.Message}")
+                    .ReportActionFail(Path.GetFileName(file), $"Reporting error {ex.ToString()}")
                     .AsEnumerableOfOne();
             }
 
@@ -991,21 +972,31 @@ namespace uSync8.BackOffice.SyncHandlers
 
         public IEnumerable<uSyncDependency> GetDependencies(Guid key, DependencyFlags flags)
         {
+            logger.Debug(handlerType, "Calc Dependency : {key}", key);
             var item = this.GetFromService(key);
-            return GetDependencies(item, flags);
+            if (item != null) 
+                return GetDependencies(item, flags);
+            else
+            {
+                var container = this.GetContainer(key);
+                if (container != null) return GetContainerDependencies(container, flags);
+            }
+
+            return Enumerable.Empty<uSyncDependency>();
         }
 
+        [Obsolete("Always get dependencies by key - getting by ID doesn't work for containers", true)]
         public IEnumerable<uSyncDependency> GetDependencies(int id, DependencyFlags flags)
         {
             var item = this.GetFromService(id);
             if (item == null)
             {
-                var baseItem = GetNewBase(id);
-                return GetContainerDependencies(baseItem, flags);
+                // v8.7.0 + getting by id doesn't support container dependencies.
+                // return GetContainerDependencies(baseItem, flags);
+                return Enumerable.Empty<uSyncDependency>();
             }
             return GetDependencies(item, flags);
         }
-
 
         protected IEnumerable<uSyncDependency> GetDependencies(TObject item, DependencyFlags flags)
         {
@@ -1020,7 +1011,7 @@ namespace uSync8.BackOffice.SyncHandlers
             return dependencies;
         }
 
-        private IEnumerable<uSyncDependency> GetContainerDependencies(TBase parent, DependencyFlags flags)
+        private IEnumerable<uSyncDependency> GetContainerDependencies(TContainer parent, DependencyFlags flags)
         {
             if (checkers == null || checkers.Count == 0) return Enumerable.Empty<uSyncDependency>();
 
@@ -1080,7 +1071,6 @@ namespace uSync8.BackOffice.SyncHandlers
 
         public IEnumerable<uSyncAction> Report(string file, HandlerSettings config)
             => ReportItem(file, config);
-
 
         public IEnumerable<uSyncAction> Export(int id, string folder, HandlerSettings settings)
         {
@@ -1181,19 +1171,20 @@ namespace uSync8.BackOffice.SyncHandlers
         protected abstract TObject GetFromService(int id);
         protected abstract TObject GetFromService(Guid key);
         protected abstract TObject GetFromService(string alias);
-        protected abstract TObject GetFromService(TBase baseItem);
+        protected abstract TObject GetFromService(TContainer baseItem);
+
+        protected abstract TContainer GetContainer(Guid key);
 
         protected abstract void DeleteViaService(TObject item);
 
         protected abstract string GetItemPath(TObject item, bool useGuid, bool isFlat);
         protected abstract string GetItemName(TObject item);
 
-        protected abstract int GetItemId(TObject item);
+        // protected abstract int GetItemId(TObject item);
         protected abstract Guid GetItemKey(TObject item);
 
-        protected abstract TBase GetNewBase(int id);
-        protected abstract IEnumerable<TBase> GetChildItems(TBase parent);
-        protected abstract IEnumerable<TBase> GetFolders(TBase parent);
+        protected abstract IEnumerable<TContainer> GetChildItems(TContainer parent);
+        protected abstract IEnumerable<TContainer> GetFolders(TContainer parent);
         protected abstract IEnumerable<uSyncAction> DeleteMissingItems(TObject parent, IEnumerable<Guid> keys, bool reportOnly);
 
         //

@@ -20,7 +20,7 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 {
     [SyncHandler("memberTypeHandler", "Member Types", "MemberTypes", uSyncBackOfficeConstants.Priorites.MemberTypes, 
         IsTwoPass = true, Icon = "icon-users", EntityType = UdiEntityType.MemberType)]
-    public class MemberTypeHandler : SyncHandlerContainerBase<IMemberType, IMemberTypeService>, ISyncExtendedHandler
+    public class MemberTypeHandler : SyncHandlerContainerBase<IMemberType>, ISyncExtendedHandler
     {
         private readonly IMemberTypeService memberTypeService;
 
@@ -63,6 +63,9 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 
         protected override IMemberType GetFromService(string alias)
             => memberTypeService.Get(alias);
+
+        protected override IEntity GetContainer(Guid key)
+            => memberTypeService.GetContainer(key);
 
         protected override string GetItemFileName(IUmbracoEntity item, bool useGuid)
         {

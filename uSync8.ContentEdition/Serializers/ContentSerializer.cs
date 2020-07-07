@@ -116,9 +116,9 @@ namespace uSync8.ContentEdition.Serializers
                 foreach (var schedule in schedules.OrderBy(x => x.Action).OrderBy(x => x.Culture))
                 {
                     node.Add(new XElement("ContentSchedule",
-                        new XElement("Culture", schedule.Culture),
+                        new XElement("Culture", schedule.Culture.ToLower()),
                         new XElement("Action", schedule.Action),
-                        new XElement("Date", schedule.Date)));
+                        new XElement("Date", schedule.Date.ToString("s"))));
                 }
             }
 
@@ -137,11 +137,7 @@ namespace uSync8.ContentEdition.Serializers
             DeserializeTemplate(item, node);
             DeserializeSchedules(item, node, options);
 
-            return SyncAttempt<IContent>.Succeed(
-                item.Name,
-                item,
-                ChangeType.Import,
-                "");
+            return SyncAttempt<IContent>.Succeed(item.Name, item, ChangeType.Import);
         }
 
         protected virtual void DeserializeTemplate(IContent item, XElement node)
@@ -150,7 +146,18 @@ namespace uSync8.ContentEdition.Serializers
 
             if (templateNode != null)
             {
-                var key = templateNode.ValueOrDefault(Guid.Empty);
+                var alias = templateNode.ValueOrDefault(string.Empty);
+                if (!string.IsNullOrWhiteSpace(alias))
+                {
+                    var template = fileService.GetTemplate(alias);
+                    if (template != null)
+                    {
+                        item.TemplateId = template.Id;
+                        return;
+                    }
+                }
+
+                var key = templateNode.Attribute("Key").ValueOrDefault(Guid.Empty);
                 if (key != Guid.Empty)
                 {
                     var template = fileService.GetTemplate(key);
@@ -161,13 +168,6 @@ namespace uSync8.ContentEdition.Serializers
                     }
                 }
 
-                var alias = templateNode.ValueOrDefault(string.Empty);
-                if (!string.IsNullOrWhiteSpace(alias))
-                {
-                    var template = fileService.GetTemplate(alias);
-                    if (template != null)
-                        item.TemplateId = template.Id;
-                }
             }
         }
 
@@ -228,9 +228,8 @@ namespace uSync8.ContentEdition.Serializers
 
             if (saveAttempt.Success)
             {
-                // we say no change back, this stops the core second pass function from saving 
-                // this item (which we have just done with DoSaveOrPublish)
-                return SyncAttempt<IContent>.Succeed(item.Name, item, ChangeType.NoChange, attempt.Status);
+                // setting the 'saved' flag to true on the stops base classes from also saving the item.
+                return SyncAttempt<IContent>.Succeed(item.Name, item, ChangeType.Import, attempt.Status, true);
             }
 
             return SyncAttempt<IContent>.Fail(item.Name, item, ChangeType.ImportFail, $"{saveAttempt.Result} {attempt.Status}");
@@ -311,15 +310,8 @@ namespace uSync8.ContentEdition.Serializers
                 }
             }
 
-            // if we get here, save 
-            /*
-            var result = contentService.Save(item);
-            if (result.Success) */
-
             this.SaveItem(item);
             return Attempt.Succeed("Saved");
-
-            // return Attempt.Fail("Save Failed " + result.EventMessages);
         }
 
         /// <summary>
@@ -426,6 +418,8 @@ namespace uSync8.ContentEdition.Serializers
 
             try
             {
+                var hasBeenSaved = false; 
+
                 var publishedCultures = cultures
                     .Where(x => x.Value == uSyncContentState.Published)
                     .Select(x => x.Key)
@@ -434,7 +428,12 @@ namespace uSync8.ContentEdition.Serializers
                 if (publishedCultures.Length > 0)
                 {
                     var result = contentService.SaveAndPublish(item, publishedCultures);
+
+                    // if this fails, we return the result
                     if (!result.Success) return result.ToAttempt();
+
+                    // if its published here it's also saved, so we can skip the save below.
+                    hasBeenSaved = true;
                 }
                 
                 var unpublishedCultures = cultures
@@ -446,7 +445,9 @@ namespace uSync8.ContentEdition.Serializers
                 
                     foreach (var culture in unpublishedCultures)
                     {
-                        contentService.Unpublish(item, culture);
+                        // unpublish if the culture is currently published.
+                        if (item.PublishedCultures.InvariantContains(culture))
+                            contentService.Unpublish(item, culture);
                     }
                 }
 
@@ -454,6 +455,9 @@ namespace uSync8.ContentEdition.Serializers
                 if (unpublishMissing)
                     UnpublishMissingCultures(item, cultures.Select(x => x.Key).ToArray());
 
+                // if we get to this point and no save has been called, we should call it. 
+                if (!hasBeenSaved && item.IsDirty())
+                    contentService.Save(item);
 
                 return Attempt.Succeed("Done");
             }

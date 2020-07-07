@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -145,12 +147,6 @@ namespace uSync8.BackOffice
         public static uSyncAction ReportAction(ChangeType changeType, string name)
         {
             return new uSyncAction(true, name, typeof(T), changeType, string.Empty, null, string.Empty);
-        }
-
-        [Obsolete("You should report the key back so it can be found")]
-        public static uSyncAction ReportAction(ChangeType changeType, string name, string file, string handlerAlias)
-        {
-            return new uSyncAction(true, name, typeof(T), changeType, string.Empty, null, file, handlerAlias);
         }
 
         public static uSyncAction ReportAction(ChangeType changeType, string name, string file, Guid key, string handlerAlias)

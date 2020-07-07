@@ -28,22 +28,10 @@ namespace uSync8.BackOffice.SyncHandlers
     /// ideally this would be in SyncHandlerTreeBase, but 
     /// Templates have levels but are not ITreeEntities 
     /// </summary>
-    public abstract class SyncHandlerLevelBase<TObject, TService>
-        : SyncHandlerBase<TObject, TService>
+    public abstract class SyncHandlerLevelBase<TObject>
+        : SyncHandlerBase<TObject>
         where TObject : IEntity
-        where TService : IService
     {
-
-        protected SyncHandlerLevelBase(
-            IEntityService entityService,
-            IProfilingLogger logger,
-            ISyncSerializer<TObject> serializer,
-            ISyncTracker<TObject> tracker,
-            AppCaches appCaches,
-            SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, syncFileService)
-        { }
-
         protected SyncHandlerLevelBase(
             IEntityService entityService,
             IProfilingLogger logger,
@@ -53,18 +41,6 @@ namespace uSync8.BackOffice.SyncHandlers
             SyncDependencyCollection checkers,
             SyncFileService syncFileService)
             : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
-        { }
-
-        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
-        protected SyncHandlerLevelBase(
-                  IEntityService entityService,
-                  IProfilingLogger logger,
-                  ISyncSerializer<TObject> serializer,
-                  ISyncTracker<TObject> tracker,
-                  AppCaches appCaches,
-                  ISyncDependencyChecker<TObject> checker,
-                  SyncFileService fileService)
-                  : base(entityService, logger, serializer, tracker, appCaches, checker, fileService) 
         { }
 
         /// <summary>
@@ -121,7 +97,6 @@ namespace uSync8.BackOffice.SyncHandlers
             // loaded - now process.
             var flags = SerializerFlags.None;
             if (force) flags |= SerializerFlags.Force;
-            if (config.BatchSave) flags |= SerializerFlags.DoNotSave;
 
             var cleanMarkers = new List<string>();
 
@@ -141,18 +116,11 @@ namespace uSync8.BackOffice.SyncHandlers
                     }
                     else if (attempt.Item != null)
                     {
-                        updates.Add(item.Node.File, attempt.Item);
+                        updates[item.Node.File] = attempt.Item;
                     }
                 }
 
                 actions.Add(uSyncActionHelper<TObject>.SetAction(attempt, item.Node.File, IsTwoPass));
-            }
-
-            if (flags.HasFlag(SerializerFlags.DoNotSave) && updates.Any())
-            {
-                // bulk save - should be the fastest way to do this
-                callback?.Invoke($"Saving {updates.Count()} changes", 1, 1);
-                serializer.Save(updates.Select(x => x.Value));
             }
 
             var folders = syncFileService.GetDirectories(folder);
@@ -163,7 +131,6 @@ namespace uSync8.BackOffice.SyncHandlers
 
             if (actions.All(x => x.Success))
             {
-
                 // LINQ 
                 // actions.AddRange(cleanMarkers.Select(x => CleanFolder(x)).SelectMany(a => a));
 
@@ -243,5 +210,39 @@ namespace uSync8.BackOffice.SyncHandlers
 
             return path;
         }
+    }
+
+    [Obsolete]
+    public abstract class SyncHandlerLevelBase<TObject, TService> : SyncHandlerLevelBase<TObject>
+        where TObject : IEntity
+    {
+
+        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
+        protected SyncHandlerLevelBase(
+                  IEntityService entityService,
+                  IProfilingLogger logger,
+                  ISyncSerializer<TObject> serializer,
+                  ISyncTracker<TObject> tracker,
+                  AppCaches appCaches,
+                  SyncFileService syncFileService)
+                  : base(entityService, logger, appCaches, serializer, null, null, syncFileService)
+        { }
+
+        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
+        protected SyncHandlerLevelBase(
+                  IEntityService entityService,
+                  IProfilingLogger logger,
+                  ISyncSerializer<TObject> serializer,
+                  ISyncTracker<TObject> tracker,
+                  AppCaches appCaches,
+                  ISyncDependencyChecker<TObject> checker,
+                  SyncFileService syncFileService)
+                  : base(entityService, logger, appCaches, serializer, null, null, syncFileService)
+        { }
+
+
+        public SyncHandlerLevelBase(IEntityService entityService, IProfilingLogger logger, AppCaches appCaches, ISyncSerializer<TObject> serializer, SyncTrackerCollection trackers, SyncDependencyCollection checkers, SyncFileService syncFileService) 
+            : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
+        { }
     }
 }
