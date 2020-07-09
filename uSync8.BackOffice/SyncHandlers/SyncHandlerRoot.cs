@@ -1008,7 +1008,7 @@ namespace uSync8.BackOffice.SyncHandlers
             {
                 dependencies.AddRange(checker.GetDependencies(item, flags));
             }
-            return dependencies;
+            return dependencies.DistinctBy(x => x.Udi.ToString());
         }
 
         private IEnumerable<uSyncDependency> GetContainerDependencies(TContainer parent, DependencyFlags flags)
