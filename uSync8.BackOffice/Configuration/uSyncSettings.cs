@@ -71,6 +71,10 @@ namespace uSync8.BackOffice.Configuration
         /// </summary>
         public bool FailOnMissingParent { get; set; } = false;
 
+        /// <summary>
+        ///  Additional folders to include when downloading a usync export
+        /// </summary>
+        public string[] AdditionalFolders { get; set; } = new string[] { "~/views", "~/media", "~/css", "~/scripts" };
 
         /// <summary>
         ///  Get the default handler set

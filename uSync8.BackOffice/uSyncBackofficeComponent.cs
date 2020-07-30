@@ -85,7 +85,8 @@ namespace uSync8.BackOffice
 
             e.Add("uSync", new Dictionary<string, object>
             {
-                { "uSyncService", urlHelper.GetUmbracoApiServiceBaseUrl<uSyncDashboardApiController>(controller => controller.GetApi()) }
+                { "uSyncService", urlHelper.GetUmbracoApiServiceBaseUrl<uSyncDashboardApiController>(controller => controller.GetApi()) },
+                { "uploadService", urlHelper.GetUmbracoApiServiceBaseUrl<uSyncUploadApiController>(controller => controller.GetApi()) }
             });
         }
 

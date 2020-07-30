@@ -12,7 +12,10 @@
 
     "~/App_Plugins/uSync8/changeDialogController.js",
     "~/App_Plugins/uSync8/components/uSyncReportViewComponent.js",
-    "~/App_Plugins/uSync8/components/uSyncProgressViewComponent.js"
+    "~/App_Plugins/uSync8/components/uSyncProgressViewComponent.js",
+
+    "~/App_Plugins/uSync8/upload/uploadController.js",
+    "~/App_Plugins/uSync8/upload/uploadService.js"
   ],
   "css": [
     "~/App_Plugins/uSync8/usync.css",

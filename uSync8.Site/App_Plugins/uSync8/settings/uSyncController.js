@@ -5,6 +5,7 @@
         notificationsService,
         editorService,
         uSync8DashboardService,
+        uSyncUploadService,
         uSyncHub) {
 
         var vm = this;
@@ -68,6 +69,17 @@
             }]
         }
 
+        vm.downloadButton = {
+            state: 'init',
+            defaultButton: {
+                labelKey: 'usync_download',
+                handler: function () {
+                    download('');
+                }
+            },
+            subButtons: []
+        };
+
         vm.report = report;
         vm.versionInfo = {
             IsCurrent: true
@@ -76,6 +88,8 @@
         vm.exportItems = exportItems;
         vm.importForce = importForce;
         vm.importItems = importItems;
+
+        vm.uploadItems = uploadItems; 
 
         vm.getTypeName = getTypeName;
 
@@ -178,6 +192,9 @@
                 });
         }
 
+        function importGroup(group) {
+            importItems(false, group);
+        }
 
         // add a little joy to the process.
         function calculateTimeSaved(results) {
@@ -203,7 +220,6 @@
         }
 
         //////////////
-
         function getHandlerGroups() {
             uSync8DashboardService.getHandlerGroups()
                 .then(function (result) {
@@ -220,18 +236,51 @@
                             },
                             labelKey: 'usync_report-' + group.toLowerCase()
                         });
+
+                        vm.downloadButton.subButtons.push({
+                            handler: function () {
+                                download(group);
+                            },
+                            labelKey: 'usync_download-' + group.toLowerCase()
+                        });
+
                     });
                     vm.loading = false;
                 }, function (error) {
                     vm.loading = false;
                 });
         }
+        //////////////
 
-        function importGroup(group) {
-            importItems(false, group);
+        function download(group) {
+            resetStatus(modes.REPORT);
+
+            uSyncUploadService.downloadItems(group, getClientId())
+                .then(function (result) {
+                    vm.results = result.data;
+                    vm.working = false;
+                    vm.reported = true;
+                }, function (error) {
+                    notificationsService.error('Downloading', error.data.Message);
+                });
         }
 
-        //////////////
+        function uploadItems() {
+
+            editorService.open({
+                title: 'Import',
+                view: '/App_Plugins/uSync8/upload/upload.html',
+                size: 'small',
+                submit: function (done) {
+                    editorService.close();
+                    report('');
+                },
+                close: function () {
+                    editorService.close();
+                }
+            });
+
+        }
 
         function openDetail(item) {
 

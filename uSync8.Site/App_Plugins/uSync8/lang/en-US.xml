@@ -32,17 +32,29 @@
     <key alias="import-members">Import Members</key>
     <key alias="import-users">Import Users</key>
 
-    <key alias="report-content">Report Content/Media</key>
-    <key alias="report-settings">Report Settings</key>
-    <key alias="report-members">Report Members</key>
-    <key alias="report-users">Report Users</key>
+		<key alias="report-content">Report Content/Media</key>
+		<key alias="report-settings">Report Settings</key>
+		<key alias="report-members">Report Members</key>
+		<key alias="report-users">Report Users</key>
 
-    <key alias="tableType">Type</key>
+		<key alias="download">Download</key>
+		<key alias="download-content">Download Content/Media</key>
+		<key alias="download-settings">Download Settings</key>
+		<key alias="download-members">Download Members</key>
+		<key alias="download-users">Download Users</key>
+
+		<key alias="upload">Upload</key>
+
+
+		<key alias="tableType">Type</key>
     <key alias="tableName">Name</key>
     <key alias="tableChange">Change</key>
     <key alias="tableMessage">Message</key>
 
     <key alias="nochange"><![CDATA[<h4>No Changes</h4>]]></key>
+
+		<key alias="pickfolders"><![CDATA[<p>Select the folders from this archive you wish to import</p>
+		<div class="alert alert-danger"><strong>These files will overwrite the files you already have on your site, so be sure you want these files imported</strong></div>]]></key>
     
   </area>
   <area alias="dashboardTabs">

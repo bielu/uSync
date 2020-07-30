@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -11,10 +13,14 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 
+using NPoco.Expressions;
+
+using Umbraco.Core;
 using Umbraco.Core.Cache;
-using Umbraco.Core.Logging;
 using Umbraco.Core.Composing;
+using Umbraco.Core.Configuration;
 using Umbraco.Core.IO;
+using Umbraco.Core.Logging;
 using Umbraco.Web.Mvc;
 using Umbraco.Web.WebApi;
 using Umbraco.Web.WebApi.Filters;
@@ -22,6 +28,7 @@ using Umbraco.Web.WebApi.Filters;
 using uSync8.BackOffice.Configuration;
 using uSync8.BackOffice.Hubs;
 using uSync8.BackOffice.Models;
+using uSync8.BackOffice.Services;
 using uSync8.BackOffice.SyncHandlers;
 
 using Constants = Umbraco.Core.Constants;
@@ -43,6 +50,7 @@ namespace uSync8.BackOffice.Controllers
             SyncHandlerFactory handlerFactory,
             uSyncConfig config)
         {
+                    
             this.Config = config;
             this.uSyncService = uSyncService;
 

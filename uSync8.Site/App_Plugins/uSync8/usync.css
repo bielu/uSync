@@ -386,3 +386,5 @@
 .usync-change-row-Fail {
     background-color: #FFEBEE;
 }
+
+.usync-upload-picker { display: none; }

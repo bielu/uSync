@@ -17,7 +17,6 @@
         <umb-box-content>
             <div class="flex justify-between items-center">
                 <div class="usync-main-buttons">
-
                     <umb-button-group default-button="vm.reportButton.defaultButton"
                                       sub-buttons="vm.reportButton.subButtons"
                                       direction="down"
@@ -43,11 +42,25 @@
                                       button-style="info"
                                       state="vm.exportButton.state">
                     </umb-button-group>
-
                 </div>
 
                 <div>
-                    <div ng-if="vm.savings.show">
+                    <umb-button-group default-button="vm.downloadButton.defaultButton"
+                                      sub-buttons="vm.downloadButton.subButtons"
+                                      direction="down"
+                                      float="left"
+                                      button-style="action"
+                                      state="vm.downloadButton.state">
+                    </umb-button-group>
+
+                    <umb-button action="vm.uploadItems()"
+                                button-style="info"
+                                label-key="usync_upload"
+                                type="button"></umb-button>
+                </div>
+
+                <div ng-if="vm.savings.show">
+                    <div >
                         {{vm.savings.title}}  {{vm.savings.message}}
                     </div>
                 </div>

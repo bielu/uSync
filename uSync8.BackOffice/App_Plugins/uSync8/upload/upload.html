@@ -1,0 +1,91 @@
+﻿<div ng-controller="uSyncUploadController as vm">
+    <umb-editor-panel>
+        <umb-editor-header name="'Import uSync Files'"
+                           name-locked="true"
+                           hide-alias="true"
+                           hide-icon="true"
+                           hide-description="true">
+        </umb-editor-header>
+
+        <umb-editor-container>
+
+            <umb-box ng-if="!vm.uploaded">
+                <umb-box-header title="Upload File"
+                                description="Select a file to upload">
+                </umb-box-header>
+
+                <umb-box-content>
+
+                        <input id="usyncfilepicker"
+                               type="file"
+                               accept=".zip"
+                               ngf-select
+                               ngf-model="files"
+                               ngf-change="vm.fileChanges($files, $event)"
+                               ngf-multipart="true"
+                               class="usync-upload-picker" />
+
+                        <label for="usyncfilepicker"
+                               class="btn btn-default">Choose File</label>
+
+                        <span>{{vm.file.name}}</span>
+                </umb-box-content>
+
+                <umb-box-content>
+
+                        <umb-button type="button"
+                                    button-style="action"
+                                    label-key="general_upload"
+                                    action="vm.upload(vm.file)"
+                                    ng-if="vm.file != null"
+                                    state="vm.buttonState"
+                                    disabled="vm.buttonState == 'busy'">
+                        </umb-button>
+
+                </umb-box-content>
+            </umb-box>
+
+            <umb-box ng-if="vm.uploaded">
+                <umb-box-content>
+                    <p>
+                        <strong>
+                            Uploaded: {{vm.uploadedFile}}
+                        </strong>
+                    </p>
+
+                    <localize key="usync_pickfolders"></localize>
+
+                    <div ng-repeat="folder in vm.result.Folders">
+
+                        <umb-checkbox input-id="folder_{{$index}}"
+                                      name="folder_{{$index}}"
+                                      model="folder.Selected"                                      
+                                      text="{{folder.Name}}">
+                        </umb-checkbox>
+
+                    </div>
+                </umb-box-content>
+
+            </umb-box>
+
+        </umb-editor-container>
+
+        <umb-editor-footer>
+            <umb-editor-footer-content-right>
+                <umb-button type="button"
+                            button-style="link"
+                            label-key="general_close"
+                            action="vm.close()">
+                </umb-button>
+
+                <umb-button type="button"
+                            button-style="action"
+                            label-key="general_import"
+                            state="vm.buttonState"
+                            action="vm.applyChanges()">
+                </umb-button>
+
+            </umb-editor-footer-content-right>
+        </umb-editor-footer>
+    </umb-editor-panel>
+</div>
