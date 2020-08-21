@@ -22,15 +22,16 @@ namespace uSync8.Core.Serialization
             this.Flags = flags;
         }
 
-        public SyncSerializerOptions(Dictionary<string, string> Settings)
+        public SyncSerializerOptions(Dictionary<string, string> settings)
         {
-            this.Settings = Settings;
+            this.Settings = settings ?? new Dictionary<string, string>();
+            
         }
 
-        public SyncSerializerOptions(SerializerFlags flags, Dictionary<string, string> Settings)
+        public SyncSerializerOptions(SerializerFlags flags, Dictionary<string, string> settings)
+            : this(settings)
         {
             this.Flags = flags;
-            this.Settings = Settings;
         }
 
         /// <summary>
@@ -56,7 +57,7 @@ namespace uSync8.Core.Serialization
         /// </summary>
         public bool Force => Flags.HasFlag(SerializerFlags.Force);
 
-        public bool DoNotSave => Flags.HasFlag(SerializerFlags.DoNotSave);
+        // public bool DoNotSave => Flags.HasFlag(SerializerFlags.DoNotSave);
 
         public bool FailOnMissingParent => Flags.HasFlag(SerializerFlags.FailMissingParent);
 
@@ -79,7 +80,7 @@ namespace uSync8.Core.Serialization
         ///  Get the cultures defined in the settings.
         /// </summary>
         /// <returns></returns>
-        public IList<string> GetCultures() => GetSetting("Cultures", "").ToDelimitedList();
+        public IList<string> GetCultures() => GetSetting(uSyncConstants.CultureKey, string.Empty).ToDelimitedList();
 
         /// <summary>
         ///  Gets the cultures that can be de-serialized from this node.
@@ -96,7 +97,7 @@ namespace uSync8.Core.Serialization
         }
 
         public IList<string> GetSegments()
-            => GetSetting("Segments", "").ToDelimitedList();
+            => GetSetting(uSyncConstants.SegmentKey, string.Empty).ToDelimitedList();
 
         public string SwapValue(string key, string newValue)
         {

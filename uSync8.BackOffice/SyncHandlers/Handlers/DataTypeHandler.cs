@@ -22,7 +22,7 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 {
     [SyncHandler("dataTypeHandler", "Datatypes", "DataTypes", uSyncBackOfficeConstants.Priorites.DataTypes,
         Icon = "icon-autofill", EntityType = UdiEntityType.DataType)]
-    public class DataTypeHandler : SyncHandlerContainerBase<IDataType, IDataTypeService>, ISyncExtendedHandler, ISyncPostImportHandler
+    public class DataTypeHandler : SyncHandlerContainerBase<IDataType>, ISyncExtendedHandler, ISyncPostImportHandler
     {
         private readonly IDataTypeService dataTypeService;
 
@@ -43,6 +43,9 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
         protected override IDataType GetFromService(int id)
             => dataTypeService.GetDataType(id);
 
+        protected override IEntity GetContainer(Guid key)
+            => dataTypeService.GetContainer(key);
+
         protected override void InitializeEvents(HandlerSettings settings)
         {
             DataTypeService.Saved += EventSavedItem;
@@ -60,6 +63,7 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 
         protected override void DeleteFolder(int id)
             => dataTypeService.DeleteContainer(id);
+
 
         public override IEnumerable<uSyncAction> ProcessPostImport(string folder, IEnumerable<uSyncAction> actions, HandlerSettings config)
         {
@@ -80,6 +84,7 @@ namespace uSync8.BackOffice.SyncHandlers.Handlers
 
         protected override IDataType GetFromService(Guid key)
             => dataTypeService.GetDataType(key);
+
 
         protected override IDataType GetFromService(string alias)
             => dataTypeService.GetDataType(alias);

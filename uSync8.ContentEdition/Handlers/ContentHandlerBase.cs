@@ -15,6 +15,7 @@ using uSync8.ContentEdition.Serializers;
 using uSync8.Core;
 using uSync8.Core.Dependency;
 using uSync8.Core.Extensions;
+using uSync8.Core.Models;
 using uSync8.Core.Serialization;
 using uSync8.Core.Tracking;
 
@@ -28,9 +29,8 @@ namespace uSync8.ContentEdition.Handlers
     ///  places around the tree, so we have to check for file name
     ///  clashes. 
     /// </remarks>
-    public abstract class ContentHandlerBase<TObject, TService> : SyncHandlerTreeBase<TObject, TService>
+    public abstract class ContentHandlerBase<TObject> : SyncHandlerTreeBase<TObject>
         where TObject : IContentBase
-        where TService : IService
     {
         protected ContentHandlerBase(
             IEntityService entityService,
@@ -43,16 +43,16 @@ namespace uSync8.ContentEdition.Handlers
             : base(entityService, logger, appCaches, serializer, trackers, checkers, syncFileService)
         { }
 
-        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
-        protected ContentHandlerBase(IEntityService entityService, IProfilingLogger logger, ISyncSerializer<TObject> serializer, ISyncTracker<TObject> tracker, AppCaches appCaches, SyncFileService syncFileService)
-            : base(entityService, logger, serializer, tracker, appCaches, syncFileService)
-        { }
 
-        [Obsolete("Construct your handler using the tracker & Dependecy collections for better checker support")]
-        protected ContentHandlerBase(
-            IEntityService entityService, IProfilingLogger logger, ISyncSerializer<TObject> serializer, ISyncTracker<TObject> tracker, AppCaches appCaches, ISyncDependencyChecker<TObject> checker, SyncFileService fileService)
-            : base(entityService, logger, serializer, tracker, appCaches, checker, fileService)
-        { }
+        /// <summary>
+        ///  content/media is always done in a single pass.
+        /// </summary>
+        public override SyncAttempt<TObject> Import(string filePath, HandlerSettings config, SerializerFlags flags)
+        {
+            var onePass = flags | SerializerFlags.OnePass;
+            return base.Import(filePath, config, onePass);
+        }
+
 
         /*
          *  Config options. 

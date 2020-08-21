@@ -72,11 +72,10 @@ namespace uSync8.ContentEdition.Mapping
             };
         }
 
+
         private IEntitySlim GetElement(GuidUdi udi)
         {
-            if (udi != null)
-                return entityService.Get(udi.Guid);
-
+            if (udi != null) return entityService.Get(udi.Guid);
             return null;
         }
 

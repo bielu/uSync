@@ -19,8 +19,8 @@ using static Umbraco.Core.Constants;
 namespace uSync8.ContentEdition.Handlers
 {
     [SyncHandler("mediaHandler", "Media", "Media", uSyncBackOfficeConstants.Priorites.Media,
-        Icon = "icon-picture usync-addon-icon", IsTwoPass = true, EntityType = UdiEntityType.Media)]
-    public class MediaHandler : ContentHandlerBase<IMedia, IMediaService>, ISyncHandler, ISyncExtendedHandler
+        Icon = "icon-picture usync-addon-icon", IsTwoPass = false, EntityType = UdiEntityType.Media)]
+    public class MediaHandler : ContentHandlerBase<IMedia>, ISyncHandler, ISyncExtendedHandler
     {
         public override string Group => uSyncBackOfficeConstants.Groups.Content;
 
