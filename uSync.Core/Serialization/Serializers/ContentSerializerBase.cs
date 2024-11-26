@@ -256,12 +256,12 @@ namespace uSync.Core.Serialization.Serializers
                         validNode = true;
                     }
 
-                    if (validNode)
-                    {
-                        valueNode.Add(new XCData(GetExportValue(GetPropertyValue(value), property.PropertyType, value.Culture, value.Segment)));
-                        elements.Add(valueNode);
-                    }
+                if (validNode)
+                {
+                    valueNode.Add(new XCData(GetExportValue(GetPropertyValue(item, value, options), property.PropertyType, value.Culture!, value.Segment!)));
+                    elements.Add(valueNode);
                 }
+            }
 
 
                 if (includeDefaults)
@@ -303,9 +303,13 @@ namespace uSync.Core.Serialization.Serializers
             return node;
         }
 
-        // allows us to switch between published / edited easier.
-        protected virtual object GetPropertyValue(IPropertyValue value)
-            => value.EditedValue;
+    // allows us to switch between published / edited easier.
+    protected virtual object GetPropertyValue(TObject content, IPropertyValue value, SyncSerializerOptions options)
+        => value.EditedValue;
+
+    [Obsolete("Use Get Property value with content and options, will be removed in v17")]
+    protected virtual object GetPropertyValue(IPropertyValue value)
+        => value.EditedValue;
 
         protected override SyncAttempt<TObject> CanDeserialize(XElement node, SyncSerializerOptions options)
         {
