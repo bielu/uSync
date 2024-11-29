@@ -14,7 +14,7 @@
       },
       "Umbraco.Cms.Web.BackOffice": {
         "type": "Direct",
-        "requested": "[13.0.0, )",
+        "requested": "[13.0.0, 14.0.0)",
         "resolved": "13.0.0",
         "contentHash": "QtWAvGHnx9XRM2t+QiAt8IMaroCEVxSnl4TD17PjDWOCIMUebtoI0YPVyrrs01O63h9587c+eFIZh6YMWJyDZg==",
         "dependencies": {
@@ -25,7 +25,7 @@
       },
       "Umbraco.Cms.Web.Website": {
         "type": "Direct",
-        "requested": "[13.0.0, )",
+        "requested": "[13.0.0, 14.0.0)",
         "resolved": "13.0.0",
         "contentHash": "EFpo37/hVP53sRZddETv1ozfG87FbboUWjlthqvQVgC1LrLVFB0ozGwnOrcdSad70wGfSqP7OboapWloYwpqRA==",
         "dependencies": {

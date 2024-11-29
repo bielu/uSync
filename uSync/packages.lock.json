@@ -2198,8 +2198,8 @@
       "usync.core": {
         "type": "Project",
         "dependencies": {
-          "Umbraco.Cms.Web.BackOffice": "[13.0.0, )",
-          "Umbraco.Cms.Web.Website": "[13.0.0, )"
+          "Umbraco.Cms.Web.BackOffice": "[13.0.0, 14.0.0)",
+          "Umbraco.Cms.Web.Website": "[13.0.0, 14.0.0)"
         }
       },
       "usync.history": {
