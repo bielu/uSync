@@ -3,20 +3,18 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
-
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Cms.Infrastructure.HostedServices;
-
 using uSync.BackOffice.Configuration;
 using uSync.BackOffice.Services;
 using uSync.BackOffice.SyncHandlers;
 
 namespace uSync.BackOffice.Notifications;
+
 internal class SyncScopedNotificationPublisher
-    : ScopedNotificationPublisher<INotificationHandler>
+    : ScopedNotificationPublisher<INotificationHandler>, IScopedNotificationPublisher
 {
     private readonly ILogger<SyncScopedNotificationPublisher> _logger;
     private readonly IEventAggregator _eventAggregator;
@@ -41,6 +39,18 @@ internal class SyncScopedNotificationPublisher
         _uSyncConfig = uSyncConfig;
         _backgroundTaskQueue = backgroundTaskQueue;
         _uSyncEventService = uSyncEventService;
+    }
+
+    bool IScopedNotificationPublisher.PublishCancelable(ICancelableNotification notification)
+    {
+        SetSingleNotificationState(notification);
+        return base.PublishCancelable(notification);
+    }
+
+    Task<bool> IScopedNotificationPublisher.PublishCancelableAsync(ICancelableNotification notification)
+    {
+        SetSingleNotificationState(notification);
+        return base.PublishCancelableAsync(notification);
     }
 
     protected override void PublishScopedNotifications(IList<INotification> notifications)
@@ -71,7 +81,6 @@ internal class SyncScopedNotificationPublisher
                             return Task.CompletedTask;
                         }
                     });
-
             }
             else
             {
@@ -91,11 +100,16 @@ internal class SyncScopedNotificationPublisher
     {
         foreach (var notification in notifications)
         {
-            if (notification is StatefulNotification stateful)
-            {
-                stateful.State[uSync.EventStateKey] = true;
-                stateful.State[uSync.EventPausedKey] = _uSyncEventService.IsPaused;
-            }
+            SetSingleNotificationState(notification);
+        }
+    }
+
+    private void SetSingleNotificationState(INotification notification)
+    {
+        if (notification is StatefulNotification stateful)
+        {
+            stateful.State[uSync.EventStateKey] = true;
+            stateful.State[uSync.EventPausedKey] = _uSyncEventService.IsPaused;
         }
     }
 }
